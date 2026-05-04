@@ -1,0 +1,126 @@
+{
+  "project_info": {
+    "project_number": "975831997148",
+    "project_id": "romi-meeting-rooms",
+    "storage_bucket": "romi-meeting-rooms.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:975831997148:android:229c556e87ba252cf33219",
+        "android_client_info": {
+          "package_name": "ae.almarmous.orders"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "975831997148-emtp8up6h6oer1gdr9olfu657gu01tca.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ae.almarmous.orders",
+            "certificate_hash": "3ffe3ded047da9919cc4de0f763729dcc811cb6e"
+          }
+        },
+        {
+          "client_id": "975831997148-91490gjd9e1jfg5nn7vlrpso69sg98b7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKOCA0hQwgE51Lhg_8l7BextkiNN4L2Tk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "975831997148-91490gjd9e1jfg5nn7vlrpso69sg98b7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "975831997148-20748qsb7id9l0ovk1tohnrbtudiqfur.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "ae.almarmous.orders"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:975831997148:android:89bf0e19d47cb2acf33219",
+        "android_client_info": {
+          "package_name": "com.romi.tablet"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "975831997148-91490gjd9e1jfg5nn7vlrpso69sg98b7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKOCA0hQwgE51Lhg_8l7BextkiNN4L2Tk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "975831997148-91490gjd9e1jfg5nn7vlrpso69sg98b7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "975831997148-20748qsb7id9l0ovk1tohnrbtudiqfur.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "ae.almarmous.orders"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:975831997148:android:dfd1d104692efe70f33219",
+        "android_client_info": {
+          "package_name": "com.romi.tabletdisplay"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "975831997148-91490gjd9e1jfg5nn7vlrpso69sg98b7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKOCA0hQwgE51Lhg_8l7BextkiNN4L2Tk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "975831997148-91490gjd9e1jfg5nn7vlrpso69sg98b7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "975831997148-20748qsb7id9l0ovk1tohnrbtudiqfur.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "ae.almarmous.orders"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

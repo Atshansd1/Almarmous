@@ -1,0 +1,33 @@
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+coverage/
+
+# Flutter and local IDE files
+.idea/
+*.iml
+
+# Android signing and generated outputs
+android/key.properties
+android/app/upload-keystore.jks
+android/app/*.jks
+android/app/*.keystore
+android/.gradle/
+android/app/build/
+
+# iOS generated dependencies and archives
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/build/
+*.xcarchive
+*.ipa
+
+# Firebase Functions dependencies
+functions/node_modules/
+
+# macOS
+.DS_Store

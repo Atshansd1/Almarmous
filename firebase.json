@@ -1,0 +1,36 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "functions"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "romi-meeting-rooms",
+          "appId": "1:975831997148:android:229c556e87ba252cf33219",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "romi-meeting-rooms",
+          "appId": "1:975831997148:ios:35fb19fddf465593f33219",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "romi-meeting-rooms",
+          "configurations": {
+            "android": "1:975831997148:android:229c556e87ba252cf33219",
+            "ios": "1:975831997148:ios:35fb19fddf465593f33219"
+          }
+        }
+      }
+    }
+  }
+}

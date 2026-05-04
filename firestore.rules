@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /orders/{orderId} {
+      allow read, create, update, delete: if signedIn();
+    }
+
+    match /notificationTokens/{tokenId} {
+      allow read: if signedIn();
+      allow create, update, delete: if signedIn()
+        && request.resource.data.uid == request.auth.uid;
+    }
+
+    match /appConfig/{configId} {
+      allow read: if signedIn();
+    }
+  }
+}
