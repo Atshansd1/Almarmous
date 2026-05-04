@@ -606,6 +606,8 @@ class AppText {
       'manualOrder': 'Manual order',
       'barcode': 'Barcode',
       'scanBarcode': 'Scan barcode',
+      'scannerStarting': 'Starting scanner...',
+      'scannerError': 'Could not open the barcode scanner.',
       'quickActions': 'Quick actions',
       'all': 'All',
       'totalOrders': 'Total orders',
@@ -690,6 +692,8 @@ class AppText {
       'manualOrder': 'إضافة يدوي',
       'barcode': 'باركود',
       'scanBarcode': 'مسح الباركود',
+      'scannerStarting': 'جاري تشغيل الماسح...',
+      'scannerError': 'تعذر فتح ماسح الباركود.',
       'quickActions': 'إجراءات سريعة',
       'all': 'الكل',
       'totalOrders': 'كل الطلبات',
@@ -2250,7 +2254,32 @@ class BarcodeScannerPage extends StatefulWidget {
 }
 
 class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
+  late final MobileScannerController controller;
   bool handled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = MobileScannerController(
+      detectionSpeed: DetectionSpeed.noDuplicates,
+      facing: CameraFacing.back,
+      formats: const [
+        BarcodeFormat.code128,
+        BarcodeFormat.code39,
+        BarcodeFormat.ean13,
+        BarcodeFormat.ean8,
+        BarcodeFormat.qrCode,
+        BarcodeFormat.upcA,
+        BarcodeFormat.upcE,
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    unawaited(controller.dispose());
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2260,19 +2289,28 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
       body: Stack(
         children: [
           MobileScanner(
-            onDetect: (capture) {
-              if (handled) return;
-              String? code;
-              for (final barcode in capture.barcodes) {
-                if (barcode.rawValue?.trim().isNotEmpty == true) {
-                  code = barcode.rawValue;
-                  break;
-                }
-              }
-              if (code == null || code.trim().isEmpty) return;
-              handled = true;
-              Navigator.pop(context, code.trim());
-            },
+            controller: controller,
+            placeholderBuilder: (context) => Center(
+              child: Text(
+                t('scannerStarting'),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: Colors.white),
+              ),
+            ),
+            errorBuilder: (context, error) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  t('scannerError'),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(color: Colors.white),
+                ),
+              ),
+            ),
+            onDetect: _handleBarcode,
           ),
           Center(
             child: Container(
@@ -2287,6 +2325,22 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleBarcode(BarcodeCapture capture) async {
+    if (handled) return;
+    String? code;
+    for (final barcode in capture.barcodes) {
+      final value = barcode.rawValue?.trim();
+      if (value?.isNotEmpty == true) {
+        code = value;
+        break;
+      }
+    }
+    if (code == null || code.isEmpty) return;
+    handled = true;
+    await controller.stop();
+    if (mounted) Navigator.pop(context, code);
   }
 }
 
