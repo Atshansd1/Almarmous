@@ -1,4 +1,4 @@
-package com.example.almarmous_orders
+package ae.almarmous.orders
 
 import io.flutter.embedding.android.FlutterActivity
 
