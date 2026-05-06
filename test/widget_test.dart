@@ -68,10 +68,24 @@ Total COD
 ''');
 
     expect(parsed.trackingNumber, 'XR873442');
-    expect(parsed.phone, '5506311222');
+    expect(parsed.phone, '0506311222');
     expect(parsed.city, 'عجمان');
-    expect(parsed.area, 'المية شارع الإعلام');
+    expect(parsed.area, 'شارع الإعلام');
     expect(parsed.cod, 250);
+  });
+
+  test('cleans common Arabic area OCR noise from iFast labels', () {
+    final parsed = LabelParser.parse('''
+XR873442
+5506311222
+عجمان المي الي شارع الجلاد
+Total COD
+250
+''');
+
+    expect(parsed.phone, '0506311222');
+    expect(parsed.city, 'عجمان');
+    expect(parsed.area, 'شارع الإعلام');
   });
 
   test('parses Abu Dhabi handwritten Arabic before printed labels', () {

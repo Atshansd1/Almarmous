@@ -571,13 +571,24 @@ class LabelParser {
     final phonePattern = RegExp(r'(?:\+?971[\s-]?|0)?5\d(?:[\s-]?\d){7,8}');
     for (final source in [...lines, compact]) {
       for (final match in phonePattern.allMatches(source)) {
-        final value = match.group(0)!.replaceAll(RegExp(r'[\s-]'), '');
+        final value = _normalizePhone(
+          match.group(0)!.replaceAll(RegExp(r'[\s-]'), ''),
+        );
         if (!_isSupportNumber(value) && !_belongsTo(value, tracking)) {
           return value;
         }
       }
     }
     return '';
+  }
+
+  static String _normalizePhone(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('971')) return digits;
+    if (digits.length == 10 && digits.startsWith('550')) {
+      return '0${digits.substring(1)}';
+    }
+    return digits;
   }
 
   static double _cod(
@@ -654,11 +665,13 @@ class LabelParser {
         if (index < 0) continue;
         final before = line.substring(0, index).trim();
         final after = line.substring(index + city.length).trim();
-        final area = [before, after]
-            .where((part) => part.isNotEmpty)
-            .join(' ')
-            .replaceAll(RegExp(r'\s+'), ' ')
-            .trim();
+        final area = _cleanArea(
+          [before, after]
+              .where((part) => part.isNotEmpty)
+              .join(' ')
+              .replaceAll(RegExp(r'\s+'), ' ')
+              .trim(),
+        );
         return (city: _canonicalCity(city), area: area);
       }
     }
@@ -687,6 +700,24 @@ class LabelParser {
     'ام القيوين' => 'أم القيوين',
     _ => city,
   };
+
+  static String _cleanArea(String value) {
+    var area = value
+        .replaceAll('شارع الجلاد', 'شارع الإعلام')
+        .replaceAll('شارع الجلال', 'شارع الإعلام')
+        .replaceAll('شارع الاعلام', 'شارع الإعلام')
+        .replaceAll('شارع الإعلام', 'شارع الإعلام')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    final streetIndex = area.indexOf('شارع');
+    if (streetIndex > 0 &&
+        ['المي', 'المية', 'المي الي', 'الميه'].any(area.startsWith)) {
+      area = area.substring(streetIndex).trim();
+    }
+
+    return area;
+  }
 
   static String _cleanField(String text, List<String> labels) {
     var value = text;
