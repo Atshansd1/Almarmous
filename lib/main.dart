@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -517,12 +518,17 @@ class LabelParser {
     final tracking = _tracking(compact);
     final phone = _phone(lines, compact, tracking);
     final cod = _cod(lines, compact, tracking, phone);
+    final handwrittenLocation = _handwrittenLocation(lines);
 
     return ParsedOrderData(
       trackingNumber: tracking,
       phone: phone,
-      city: _fieldFromLines(lines, ['City', 'المدينة']),
-      area: _fieldFromLines(lines, ['Area', 'المنطقة']),
+      city: handwrittenLocation.city.isNotEmpty
+          ? handwrittenLocation.city
+          : _fieldFromLines(lines, ['City', 'المدينة']),
+      area: handwrittenLocation.area.isNotEmpty
+          ? handwrittenLocation.area
+          : _fieldFromLines(lines, ['Area', 'المنطقة']),
       cod: cod,
       rawText: text,
     );
@@ -638,6 +644,49 @@ class LabelParser {
     }
     return '';
   }
+
+  static ({String city, String area}) _handwrittenLocation(List<String> lines) {
+    for (final rawLine in lines) {
+      final line = _cleanField(rawLine, const []);
+      if (!_hasArabic(line)) continue;
+      for (final city in _knownCities) {
+        final index = line.indexOf(city);
+        if (index < 0) continue;
+        final before = line.substring(0, index).trim();
+        final after = line.substring(index + city.length).trim();
+        final area = [before, after]
+            .where((part) => part.isNotEmpty)
+            .join(' ')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+        return (city: _canonicalCity(city), area: area);
+      }
+    }
+    return (city: '', area: '');
+  }
+
+  static const _knownCities = [
+    'أبوظبي',
+    'ابوظبي',
+    'دبي',
+    'عجمان',
+    'الشارقة',
+    'شارقة',
+    'العين',
+    'الفجيرة',
+    'رأس الخيمة',
+    'راس الخيمة',
+    'أم القيوين',
+    'ام القيوين',
+  ];
+
+  static String _canonicalCity(String city) => switch (city) {
+    'ابوظبي' => 'أبوظبي',
+    'شارقة' => 'الشارقة',
+    'راس الخيمة' => 'رأس الخيمة',
+    'ام القيوين' => 'أم القيوين',
+    _ => city,
+  };
 
   static String _cleanField(String text, List<String> labels) {
     var value = text;
@@ -1337,7 +1386,11 @@ class _HomeShellState extends State<HomeShell> {
 
   Future<void> _pickAndRead(ImageSource source) async {
     final picker = ImagePicker();
-    final image = await picker.pickImage(source: source, imageQuality: 92);
+    final image = await picker.pickImage(
+      source: source,
+      imageQuality: 80,
+      maxWidth: 1600,
+    );
     if (image == null || !mounted) return;
 
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
@@ -1346,11 +1399,16 @@ class _HomeShellState extends State<HomeShell> {
       final recognized = await recognizer.processImage(
         InputImage.fromFilePath(image.path),
       );
-      final parsed = LabelParser.parse(
+      final cloudText = await _cloudTextFromImage(image.path);
+      final combinedText = [
         recognized.text,
+        cloudText,
+      ].where((value) => value.trim().isNotEmpty).join('\n');
+      final parsed = LabelParser.parse(
+        combinedText,
       ).copyWith(trackingNumber: barcode, labelImagePath: image.path);
       if (!mounted) return;
-      if (recognized.text.trim().isEmpty && parsed.trackingNumber.isEmpty) {
+      if (combinedText.trim().isEmpty && parsed.trackingNumber.isEmpty) {
         _showError(AppText.of(context, 'ocrFailed'));
         return;
       }
@@ -1359,6 +1417,21 @@ class _HomeShellState extends State<HomeShell> {
       if (mounted) _showError(AppText.of(context, 'ocrFailed'));
     } finally {
       await recognizer.close();
+    }
+  }
+
+  Future<String> _cloudTextFromImage(String path) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return '';
+    try {
+      final bytes = await File(path).readAsBytes();
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'extractLabelText',
+      );
+      final result = await callable.call({'imageBase64': base64Encode(bytes)});
+      final data = Map<String, dynamic>.from(result.data as Map);
+      return data['text'] as String? ?? '';
+    } catch (_) {
+      return '';
     }
   }
 

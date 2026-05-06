@@ -1,8 +1,12 @@
 const {initializeApp} = require("firebase-admin/app");
 const {getMessaging} = require("firebase-admin/messaging");
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
+const {HttpsError, onCall} = require("firebase-functions/v2/https");
+const vision = require("@google-cloud/vision");
 
 initializeApp();
+
+const visionClient = new vision.ImageAnnotatorClient();
 
 const STATUS_AR = {
   sent: "مرسل",
@@ -52,4 +56,26 @@ exports.notifyOrderChange = onDocumentWritten("orders/{orderId}", async (event) 
       },
     },
   });
+});
+
+exports.extractLabelText = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign in required.");
+  }
+
+  const imageBase64 = request.data && request.data.imageBase64;
+  if (!imageBase64 || typeof imageBase64 !== "string") {
+    throw new HttpsError("invalid-argument", "imageBase64 is required.");
+  }
+
+  if (Buffer.byteLength(imageBase64, "base64") > 6 * 1024 * 1024) {
+    throw new HttpsError("invalid-argument", "Image is too large.");
+  }
+
+  const [result] = await visionClient.documentTextDetection({
+    image: {content: imageBase64},
+    imageContext: {languageHints: ["ar", "en"]},
+  });
+
+  return {text: (result.fullTextAnnotation && result.fullTextAnnotation.text) || ""};
 });

@@ -1,7 +1,7 @@
 name: almarmous_orders
 description: Bilingual Flutter order tracking app with OCR import, dashboard, and reports.
 publish_to: "none"
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ^3.10.0
@@ -28,6 +28,7 @@ dependencies:
   cloud_firestore: ^6.3.0
   firebase_messaging: ^16.2.0
   package_info_plus: ^10.1.0
+  cloud_functions: ^6.2.0
 
 dev_dependencies:
   flutter_test:
