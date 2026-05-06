@@ -79,3 +79,83 @@ exports.extractLabelText = onCall(async (request) => {
 
   return {text: (result.fullTextAnnotation && result.fullTextAnnotation.text) || ""};
 });
+exports.checkLowStock = onDocumentWritten("products/{productId}", async (event) => {
+  if (!event.data || !event.data.after.exists) return;
+
+  const after = event.data.after.data();
+  const name = after.name || "منتج";
+  const qty = after.qty || 0;
+  const lowThreshold = after.lowStockThreshold || 10;
+  const criticalThreshold = after.criticalStockThreshold || 5;
+
+  if (qty > lowThreshold) return;
+
+  let title = "تنبيه مخزون / Stock Alert";
+  let body = `${name}: ${qty} pieces remaining / تبقى ${qty} قطع`;
+  
+  if (qty <= criticalThreshold) {
+    title = "⚠️ تنبيه مخزون حرج / CRITICAL Stock Alert";
+    body = `CRITICAL: ${name} is almost out! Only ${qty} left. / مخزون حرج: ${name} شارف على الانتهاء! بقي ${qty} فقط.`;
+  }
+
+  await getMessaging().send({
+    topic: "almarmous-admin",
+    notification: {
+      title: title,
+      body: body,
+    },
+    data: {
+      productId: event.params.productId,
+      type: "low_stock",
+      qty: String(qty),
+    },
+    android: {
+      priority: "high",
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: "default",
+          badge: 1,
+        },
+      },
+    },
+  });
+});
+exports.updateCustomerStats = onDocumentWritten("orders/{orderId}", async (event) => {
+  if (!event.data || !event.data.after.exists) return;
+
+  const after = event.data.after.data();
+  const phone = after.phone;
+  if (!phone) return;
+
+  const db = event.data.after.ref.firestore;
+  const customerRef = db.collection("customers").doc(phone);
+
+  const ordersSnapshot = await db.collection("orders").where("phone", "==", phone).get();
+  
+  let totalOrders = 0;
+  let totalSpent = 0;
+  let lastOrderDate = null;
+
+  ordersSnapshot.forEach((doc) => {
+    const data = doc.data();
+    totalOrders++;
+    totalSpent += (data.cod || 0);
+    const date = data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt)) : null;
+    if (date && (!lastOrderDate || date > lastOrderDate)) {
+      lastOrderDate = date;
+    }
+  });
+
+  await customerRef.set({
+    phone: phone,
+    name: after.customerName || "",
+    city: after.city || "",
+    area: after.area || "",
+    totalOrders: totalOrders,
+    totalSpent: totalSpent,
+    lastOrderDate: lastOrderDate,
+    updatedAt: new Date(),
+  }, {merge: true});
+});

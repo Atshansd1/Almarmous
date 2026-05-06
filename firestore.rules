@@ -10,6 +10,18 @@ service cloud.firestore {
       allow read, create, update, delete: if signedIn();
     }
 
+    match /products/{productId} {
+      allow read, create, update, delete: if signedIn();
+    }
+
+    match /offers/{offerId} {
+      allow read, create, update, delete: if signedIn();
+    }
+
+    match /customers/{phone} {
+      allow read, create, update, delete: if signedIn();
+    }
+
     match /notificationTokens/{tokenId} {
       allow read: if signedIn();
       allow create, update, delete: if signedIn()
