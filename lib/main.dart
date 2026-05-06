@@ -508,7 +508,7 @@ class ParsedOrderData {
 
 class LabelParser {
   static ParsedOrderData parse(String text) {
-    final normalized = _normalizeDigits(text);
+    final normalized = _normalizeText(text);
     final lines = normalized
         .split(RegExp(r'[\r\n]+'))
         .map((line) => line.replaceAll(RegExp(r'\s+'), ' ').trim())
@@ -533,6 +533,11 @@ class LabelParser {
       rawText: text,
     );
   }
+
+  static String _normalizeText(String text) => _normalizeDigits(text)
+      .replaceAll('\u06CC', 'ي')
+      .replaceAll('\u0649', 'ي')
+      .replaceAll('\u06A9', 'ك');
 
   static String _normalizeDigits(String text) => text
       .replaceAll('\u0660', '0')
@@ -602,6 +607,9 @@ class LabelParser {
       'COD',
       'اجمالي الاستلام',
       'إجمالي الاستلام',
+      'اجمالي التحصيل',
+      'إجمالي التحصيل',
+      'اجمالي الاسلام',
       'الاستلام',
     ];
 

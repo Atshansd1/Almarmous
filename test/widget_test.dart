@@ -88,6 +88,37 @@ Total COD
     expect(parsed.area, 'شارع الإعلام');
   });
 
+  test('parses Al Ain label and normalizes Arabic area text', () {
+    final parsed = LabelParser.parse('''
+iFast
+Quick as a clicki
+0505036328
+XR873443
+رقم موبايل المستلم
+Recipient Phone
+المنطقة
+Area
+مزید
+العين
+قيمة الشحنة
+رسوم التوصيل
+اجمالي الاسلام
+Total COD
+المدينة
+City
+عدد الأجزاء
+Package Price
+Delivery Fees
+Count of Parts
+600500555
+''');
+
+    expect(parsed.trackingNumber, 'XR873443');
+    expect(parsed.phone, '0505036328');
+    expect(parsed.city, 'العين');
+    expect(parsed.area, 'مزيد');
+  });
+
   test('parses Abu Dhabi handwritten Arabic before printed labels', () {
     final parsed = LabelParser.parse('''
 XR873444
