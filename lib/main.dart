@@ -805,6 +805,31 @@ class NotificationService {
 class UpdateService {
   static bool _automaticCheckDone = false;
 
+  static Future<void> promoteCurrentVersion(BuildContext context) async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final build = int.tryParse(info.buildNumber) ?? 0;
+      if (build == 0) return;
+
+      await FirebaseFirestore.instance.collection('appConfig').doc('mobile').set({
+        'latestBuildNumber': build,
+        'minimumBuildNumber': build - 1,
+      }, SetOptions(merge: true));
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Version promoted successfully')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
+  }
+
   static Future<void> maybePrompt(
     BuildContext context, {
     bool automatic = false,
@@ -3311,12 +3336,25 @@ class SettingsPage extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Card(
-          child: ListTile(
-            leading: const Icon(CupertinoIcons.arrow_down_circle),
-            title: Text(t('appUpdate')),
-            subtitle: Text(t('appUpdateHint')),
-            trailing: const Icon(CupertinoIcons.chevron_forward),
-            onTap: () => UpdateService.maybePrompt(context),
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(CupertinoIcons.arrow_down_circle),
+                title: Text(t('appUpdate')),
+                subtitle: Text(t('appUpdateHint')),
+                trailing: const Icon(CupertinoIcons.chevron_forward),
+                onTap: () => UpdateService.maybePrompt(context),
+              ),
+              if (role == UserRole.admin) ...[
+                const Divider(height: 0),
+                ListTile(
+                  leading: const Icon(CupertinoIcons.cloud_upload),
+                  title: const Text('Promote current to Latest'),
+                  subtitle: const Text('Broadcast this build to all devices'),
+                  onTap: () => UpdateService.promoteCurrentVersion(context),
+                ),
+              ],
+            ],
           ),
         ),
         if (Platform.isAndroid || Platform.isIOS) ...[
