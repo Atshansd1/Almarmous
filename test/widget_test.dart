@@ -5,6 +5,44 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
+  test('parses iFast label OCR without using template labels as values', () {
+    final parsed = LabelParser.parse('''
+iFast
+Quick as a click
+XR873442
+5526311222 رقم موبايل المستلم Recipient Phone
+شارع الحميدية المنطقة Area
+عجمان المدينة City
+اجمالي الاستلام Total COD
+250
+Package Price
+Delivery Fees
+Count Of Parts
+600 500 555
+''');
+
+    expect(parsed.trackingNumber, 'XR873442');
+    expect(parsed.phone, '5526311222');
+    expect(parsed.city, 'عجمان');
+    expect(parsed.area, 'شارع الحميدية');
+    expect(parsed.cod, 250);
+  });
+
+  test('does not use tracking digits as COD when amount is missing', () {
+    final parsed = LabelParser.parse('''
+XR873442
+Recipient Phone
+Package Price
+Count Of Parts
+600 500 555
+''');
+
+    expect(parsed.trackingNumber, 'XR873442');
+    expect(parsed.city, isEmpty);
+    expect(parsed.area, isEmpty);
+    expect(parsed.cod, 0);
+  });
+
   testWidgets('shows Almarmous dashboard', (WidgetTester tester) async {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();

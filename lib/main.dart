@@ -507,76 +507,204 @@ class ParsedOrderData {
 
 class LabelParser {
   static ParsedOrderData parse(String text) {
-    final normalized = text
-        .replaceAll('\u0660', '0')
-        .replaceAll('\u0661', '1')
-        .replaceAll('\u0662', '2')
-        .replaceAll('\u0663', '3')
-        .replaceAll('\u0664', '4')
-        .replaceAll('\u0665', '5')
-        .replaceAll('\u0666', '6')
-        .replaceAll('\u0667', '7')
-        .replaceAll('\u0668', '8')
-        .replaceAll('\u0669', '9');
-    final compact = normalized.replaceAll(RegExp(r'\s+'), ' ');
-    final tracking =
-        RegExp(
-          r'\b[A-Z]{1,4}\d{5,}\b',
-        ).firstMatch(compact.toUpperCase())?.group(0) ??
-        '';
-    final phone =
-        RegExp(
-          r'(?:\+?971|0)?5\d[\s-]?\d{3}[\s-]?\d{4}',
-        ).firstMatch(compact)?.group(0)?.replaceAll(RegExp(r'[\s-]'), '') ??
-        '';
-    final cod = _numberAfter(compact, [
-      'Total COD',
-      'COD',
-      'اجمالي الاستلام',
-      'إجمالي الاستلام',
-      'الاستلام',
-    ]);
+    final normalized = _normalizeDigits(text);
+    final lines = normalized
+        .split(RegExp(r'[\r\n]+'))
+        .map((line) => line.replaceAll(RegExp(r'\s+'), ' ').trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    final compact = lines.join(' ');
+    final tracking = _tracking(compact);
+    final phone = _phone(lines, compact, tracking);
+    final cod = _cod(lines, compact, tracking, phone);
 
     return ParsedOrderData(
       trackingNumber: tracking,
       phone: phone,
-      city: _fieldAfter(compact, ['City', 'المدينة']),
-      area: _fieldAfter(compact, ['Area', 'المنطقة']),
+      city: _fieldFromLines(lines, ['City', 'المدينة']),
+      area: _fieldFromLines(lines, ['Area', 'المنطقة']),
       cod: cod,
       rawText: text,
     );
   }
 
-  static String _fieldAfter(String text, List<String> labels) {
-    for (final label in labels) {
-      final pattern = RegExp(
-        '$label[:\\s]+([^\\n|,]{2,24})',
-        caseSensitive: false,
-        unicode: true,
-      );
-      final match = pattern.firstMatch(text);
-      if (match != null) return match.group(1)!.trim();
+  static String _normalizeDigits(String text) => text
+      .replaceAll('\u0660', '0')
+      .replaceAll('\u0661', '1')
+      .replaceAll('\u0662', '2')
+      .replaceAll('\u0663', '3')
+      .replaceAll('\u0664', '4')
+      .replaceAll('\u0665', '5')
+      .replaceAll('\u0666', '6')
+      .replaceAll('\u0667', '7')
+      .replaceAll('\u0668', '8')
+      .replaceAll('\u0669', '9')
+      .replaceAll('\u06F0', '0')
+      .replaceAll('\u06F1', '1')
+      .replaceAll('\u06F2', '2')
+      .replaceAll('\u06F3', '3')
+      .replaceAll('\u06F4', '4')
+      .replaceAll('\u06F5', '5')
+      .replaceAll('\u06F6', '6')
+      .replaceAll('\u06F7', '7')
+      .replaceAll('\u06F8', '8')
+      .replaceAll('\u06F9', '9');
+
+  static String _tracking(String text) {
+    final matches = RegExp(
+      r'\b[A-Z]{1,4}\s*\d{5,}\b',
+    ).allMatches(text.toUpperCase());
+    for (final match in matches) {
+      final value = match.group(0)!.replaceAll(RegExp(r'\s+'), '');
+      if (!_isSupportNumber(value)) return value;
     }
     return '';
   }
 
-  static double _numberAfter(String text, List<String> labels) {
-    for (final label in labels) {
-      final index = text.toLowerCase().indexOf(label.toLowerCase());
-      if (index == -1) continue;
-      final tail = text.substring(index, min(index + 80, text.length));
-      final match = RegExp(r'\d+(?:[.,]\d+)?').firstMatch(tail);
-      if (match != null) {
-        return double.tryParse(match.group(0)!.replaceAll(',', '.')) ?? 0;
+  static String _phone(List<String> lines, String compact, String tracking) {
+    final phonePattern = RegExp(r'(?:\+?971[\s-]?|0)?5\d(?:[\s-]?\d){7,8}');
+    for (final source in [...lines, compact]) {
+      for (final match in phonePattern.allMatches(source)) {
+        final value = match.group(0)!.replaceAll(RegExp(r'[\s-]'), '');
+        if (!_isSupportNumber(value) && !_belongsTo(value, tracking)) {
+          return value;
+        }
       }
     }
-    final numbers = RegExp(r'\b\d{2,5}(?:[.,]\d+)?\b')
-        .allMatches(text)
-        .map((match) => double.tryParse(match.group(0)!.replaceAll(',', '.')))
-        .whereType<double>()
-        .where((value) => value < 10000)
-        .toList();
-    return numbers.isEmpty ? 0 : numbers.last;
+    return '';
+  }
+
+  static double _cod(
+    List<String> lines,
+    String compact,
+    String tracking,
+    String phone,
+  ) {
+    const labels = [
+      'Total COD',
+      'COD',
+      'اجمالي الاستلام',
+      'إجمالي الاستلام',
+      'الاستلام',
+    ];
+
+    for (var i = 0; i < lines.length; i++) {
+      if (!_containsAny(lines[i], labels)) continue;
+      final nearby = lines.skip(i).take(4).join(' ');
+      final value = _firstMoneyValue(nearby, tracking, phone);
+      if (value > 0) return value;
+    }
+
+    final compactValue = _firstMoneyValue(compact, tracking, phone);
+    if (compactValue > 0) return compactValue;
+
+    final values = _moneyMatches(compact, tracking, phone).toList();
+    return values.isEmpty ? 0 : values.first;
+  }
+
+  static double _firstMoneyValue(String text, String tracking, String phone) {
+    final values = _moneyMatches(text, tracking, phone).toList();
+    return values.isEmpty ? 0 : values.first;
+  }
+
+  static Iterable<double> _moneyMatches(
+    String text,
+    String tracking,
+    String phone,
+  ) sync* {
+    final searchable = text.replaceAll(RegExp(r'600\s*500\s*555'), ' ');
+    for (final match in RegExp(
+      r'\b\d{1,4}(?:[.,]\d{1,2})?\b',
+    ).allMatches(searchable)) {
+      final raw = match.group(0)!;
+      if (_isSupportNumber(raw)) continue;
+      if (_belongsTo(raw, tracking) || _belongsTo(raw, phone)) continue;
+      final value = double.tryParse(raw.replaceAll(',', '.'));
+      if (value != null && value > 0 && value < 10000) yield value;
+    }
+  }
+
+  static String _fieldFromLines(List<String> lines, List<String> labels) {
+    for (var i = 0; i < lines.length; i++) {
+      if (!_containsAny(lines[i], labels)) continue;
+      final candidates = [
+        _cleanField(lines[i], labels),
+        if (i > 0) _cleanField(lines[i - 1], labels),
+        if (i + 1 < lines.length) _cleanField(lines[i + 1], labels),
+      ].where((value) => value.isNotEmpty).toList();
+      final arabic = candidates.where(_hasArabic).toList();
+      if (arabic.isNotEmpty) return arabic.first;
+      if (candidates.isNotEmpty) return candidates.first;
+    }
+    return '';
+  }
+
+  static String _cleanField(String text, List<String> labels) {
+    var value = text;
+    final removeWords = [
+      ...labels,
+      'Recipient Phone',
+      'Package Price',
+      'Delivery Fees',
+      'Count Of Parts',
+      'Total COD',
+      'Quick as a click',
+      'iFast',
+      'رقم موبايل المستلم',
+      'رسوم التوصيل',
+      'عدد الأجزاء',
+      'عدد الاجزاء',
+      'اجمالي الاستلام',
+      'إجمالي الاستلام',
+      'سعر الشحنة',
+    ];
+    for (final word in removeWords) {
+      value = value.replaceAll(
+        RegExp(RegExp.escape(word), caseSensitive: false, unicode: true),
+        ' ',
+      );
+    }
+    value = value
+        .replaceAll(RegExp(r'\b[A-Z]{1,4}\s*\d{5,}\b'), ' ')
+        .replaceAll(RegExp(r'(?:\+?971|0)?5\d[\s-]?\d{3}[\s-]?\d{4}'), ' ')
+        .replaceAll(RegExp(r'\b\d+(?:[.,]\d+)?\b'), ' ')
+        .replaceAll(RegExp(r'[:|\\/\-]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (value.length < 2 || _isTemplateLabel(value)) return '';
+    return value;
+  }
+
+  static bool _containsAny(String text, List<String> values) {
+    final lower = text.toLowerCase();
+    return values.any((value) => lower.contains(value.toLowerCase()));
+  }
+
+  static bool _belongsTo(String value, String owner) {
+    if (value.isEmpty || owner.isEmpty) return false;
+    return owner
+        .replaceAll(RegExp(r'\D'), '')
+        .contains(value.replaceAll(RegExp(r'\D'), ''));
+  }
+
+  static bool _isSupportNumber(String value) =>
+      value.replaceAll(RegExp(r'\D'), '') == '600500555';
+
+  static bool _hasArabic(String value) =>
+      RegExp(r'[\u0600-\u06FF]').hasMatch(value);
+
+  static bool _isTemplateLabel(String value) {
+    final compact = value.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+    const labels = {
+      'city',
+      'area',
+      'packageprice',
+      'deliveryfees',
+      'countofparts',
+      'recipientphone',
+      'totalcod',
+    };
+    return labels.contains(compact);
   }
 }
 
@@ -1214,14 +1342,15 @@ class _HomeShellState extends State<HomeShell> {
 
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     try {
+      final barcode = await _barcodeFromImage(image.path);
       final recognized = await recognizer.processImage(
         InputImage.fromFilePath(image.path),
       );
       final parsed = LabelParser.parse(
         recognized.text,
-      ).copyWith(labelImagePath: image.path);
+      ).copyWith(trackingNumber: barcode, labelImagePath: image.path);
       if (!mounted) return;
-      if (recognized.text.trim().isEmpty) {
+      if (recognized.text.trim().isEmpty && parsed.trackingNumber.isEmpty) {
         _showError(AppText.of(context, 'ocrFailed'));
         return;
       }
@@ -1231,6 +1360,33 @@ class _HomeShellState extends State<HomeShell> {
     } finally {
       await recognizer.close();
     }
+  }
+
+  Future<String?> _barcodeFromImage(String path) async {
+    final scanner = MobileScannerController(
+      autoStart: false,
+      formats: const [
+        BarcodeFormat.code128,
+        BarcodeFormat.code39,
+        BarcodeFormat.ean13,
+        BarcodeFormat.ean8,
+        BarcodeFormat.qrCode,
+        BarcodeFormat.upcA,
+        BarcodeFormat.upcE,
+      ],
+    );
+    try {
+      final capture = await scanner.analyzeImage(path);
+      for (final barcode in capture?.barcodes ?? const <Barcode>[]) {
+        final value = barcode.rawValue?.trim();
+        if (value?.isNotEmpty == true) return value;
+      }
+    } catch (_) {
+      return null;
+    } finally {
+      await scanner.dispose();
+    }
+    return null;
   }
 
   void _showError(String message) {
